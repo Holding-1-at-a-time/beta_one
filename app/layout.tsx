@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import ConvexClerkProvider from "./ConvexClerkProvider";
+import { Analytics } from "@vercel/analytics/react"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -25,13 +26,15 @@ export default function RootLayout({
 }>) {
   return (
     <ConvexClerkProvider>
-      <html lang="en">
-        <SpeedInsights>
-          <body className={`${geistSans.variable} ${geistMono.variable}`}>
-            {children}
-          </body>
-        </SpeedInsights>
-      </html>
+      <Analytics>
+        <html lang="en">
+          <SpeedInsights>
+            <body className={`${geistSans.variable} ${geistMono.variable}`}>
+              {children}
+            </body>
+          </SpeedInsights>
+        </html>
+      </Analytics>
     </ConvexClerkProvider>
   );
 }
