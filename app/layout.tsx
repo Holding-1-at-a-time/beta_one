@@ -25,16 +25,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ConvexClerkProvider>
-      <Analytics>
-        <html lang="en">
-          <SpeedInsights>
-            <body className={`${geistSans.variable} ${geistMono.variable}`}>
-              {children}
-            </body>
-          </SpeedInsights>
-        </html>
-      </Analytics>
-    </ConvexClerkProvider>
+    <header>
+      <ConvexClerkProvider>
+        <Analytics>
+          <html lang="en">
+            <SpeedInsights>
+              <body className={`${geistSans.variable} ${geistMono.variable}`}>
+                {children}
+              </body>
+            </SpeedInsights>
+          </html>
+        </Analytics>
+      </ConvexClerkProvider>
+    </header>
   );
 }
