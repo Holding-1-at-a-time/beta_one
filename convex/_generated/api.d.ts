@@ -14,7 +14,10 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai from "../ai.js";
+import type * as assessments from "../assessments.js";
 import type * as generatingQRCode from "../generatingQRCode.js";
+import type * as payments from "../payments.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -25,7 +28,10 @@ import type * as generatingQRCode from "../generatingQRCode.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
+  assessments: typeof assessments;
   generatingQRCode: typeof generatingQRCode;
+  payments: typeof payments;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
