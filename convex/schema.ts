@@ -104,4 +104,29 @@ export default defineSchema({
         timestamp: v.string(),
     })
         .index("by_organization_timeRange", ["organizationId", "timeRange"]),
+
+    services: defineTable({
+        organizationId: v.string(),
+        name: v.string(),
+        description: v.string(),
+        basePrice: v.number(),
+        priceType: v.union(v.literal("fixed"), v.literal("hourly"), v.literal("variable")),
+        customFields: v.array(v.object({
+            name: v.string(),
+            type: v.union(v.literal("text"), v.literal("number"), v.literal("select"), v.literal("multiselect")),
+            options: v.optional(v.array(v.string())),
+            affects_price: v.boolean(),
+            price_modifier: v.optional(v.number()),
+        })),
+    }).index("by_organization", ["organizationId"]),
+
+    assessmentForms: defineTable({
+        organizationId: v.string(),
+        name: v.string(),
+        description: v.string(),
+        sections: v.array(v.object({
+            title: v.string(),
+            services: v.array(v.id("services")),
+        })),
+    }).index("by_organization", ["organizationId"]),
 });
