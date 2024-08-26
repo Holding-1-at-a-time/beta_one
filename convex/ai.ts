@@ -1,88 +1,75 @@
 // convex/ai.ts
 import { action } from "./_generated/server";
-import { ConvexError, v } from "convex/values";
-import { OpenAI } from "openai";
+import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
+import { ConvexError } from "convex/values";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+interface OllamaResponse {
+    response: string;
+    error?: string;
+}
 
-export const generateAssessmentQuestions = action({
-    args: {
-        tenantId: v.id("tenants"),
-        vehicleInfo: v.object({
-            make: v.string(),
-            model: v.string(), 
-            year: v.string(),
+async function queryOllama(prompt: string): Promise<OllamaResponse> {
+    const response = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'llama2',
+            prompt,
         }),
-    },
-    handler: async (ctx, args) => {
-        const { tenantId, vehicleInfo } = args;
+    });
 
-        const tenant = await ctx.runQuery("tenants:getTenantById", { id: tenantId });
-        if (!tenant) {
-            throw new ConvexError("Tenant not found");
+    if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+export const generateAIAssessment = action({
+    args: { assessmentId: v.id("assessments") },
+    handler: async (ctx, args) => {
+        const assessment = await ctx.runQuery(internal.assessments.getAssessmentById, { id: args.assessmentId });
+        if (!assessment) {
+            throw new ConvexError("Assessment not found");
         }
 
-        const prompt = `Generate 5 specific assessment questions for a ${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model} 
-    that will be detailed. The questions should help determine the condition of the vehicle and the level of detailing required. 
-    Format the output as a JSON array of objects, each with 'id', 'question', 'type' (either 'text', 'select', or 'number'), 
-    and 'options' (an array of strings, only for 'select' type) properties.`;
+        const prompt = `
+      Analyze the following vehicle assessment and provide recommendations:
+      Vehicle: ${assessment.vehicleDetails.year} ${assessment.vehicleDetails.make} ${assessment.vehicleDetails.model}
+      Condition: ${JSON.stringify(assessment.hotspotAssessment)}
+      Selected Services: ${JSON.stringify(assessment.selectedServices)}
+      
+      Please provide:
+      1. A summary of the vehicle's condition
+      2. Recommended additional services based on the assessment
+      3. An estimated time to complete all services
+      4. Any potential issues or concerns
+    `;
 
         try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4",
-                messages: [{ role: "user", content: prompt }],
+            const aiResponse = await queryOllama(prompt);
+            if (aiResponse.error) {
+                throw new Error(aiResponse.error);
+            }
+
+            const aiAssessment = {
+                summary: aiResponse.response,
+                timestamp: new Date().toISOString(),
+            };
+
+            await ctx.runMutation(internal.assessments.updateAssessmentWithAI, {
+                id: args.assessmentId,
+                aiAssessment,
             });
 
-            const questions = JSON.parse(response.choices[0].message.content || '[]');
-            return questions;
+            return aiAssessment;
         } catch (error) {
-            console.error("Error generating assessment questions:", error);
-            throw new ConvexError("Failed to generate assessment questions");
-        }
-    },
-});
-
-export const generateEstimate = action({
-    args: {
-        tenantId: v.id("tenants"),
-        vehicleInfo: v.object({
-            make: v.string(),
-            model: v.string(),
-            year: v.string(),
-        }),
-        assessmentData: v.array(v.object({
-            question: v.string(),
-            answer: v.string(),
-        })),
-    },
-    handler: async (ctx, args) => {
-        const { tenantId, vehicleInfo, assessmentData } = args;
-
-        const tenant = await ctx.runQuery("tenants:getTenantById", { id: tenantId });
-        if (!tenant) {
-            throw new ConvexError("Tenant not found");
-        }
-
-        const prompt = `Based on the following assessment data for a ${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model}, 
-    provide an estimated cost for a full detailing service. Consider the vehicle's condition and the level of detailing required. 
-    Assessment data:
-    ${JSON.stringify(assessmentData, null, 2)}
-    
-    Provide the estimate as a single number representing the total cost in USD.`;
-
-        try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4",
-                messages: [{ role: "user", content: prompt }],
-            });
-
-            const estimateAmount = parseFloat(response.choices[0].message.content || '0');
-            return estimateAmount;
-        } catch (error) {
-            console.error("Error generating estimate:", error);
-            throw new ConvexError("Failed to generate estimate");
+            console.error("AI Assessment generation failed:", error);
+            throw new ConvexError("Failed to generate AI assessment");
         }
     },
 });

@@ -129,4 +129,76 @@ export default defineSchema({
             services: v.array(v.id("services")),
         })),
     }).index("by_organization", ["organizationId"]),
+
+    organizations: defineTable({
+        name: v.string(),
+        settings: v.object({
+            allowedFileTypes: v.array(v.string()),
+            maxFileSize: v.number(),
+            customFields: v.array(v.object({
+                name: v.string(),
+                type: v.union(v.literal("text"), v.literal("number"), v.literal("select")),
+                options: v.optional(v.array(v.string())),
+            })),
+        }),
+    }),
+
+    services: defineTable({
+        organizationId: v.id("organizations"),
+        name: v.string(),
+        description: v.string(),
+        basePrice: v.number(),
+        customFields: v.array(v.object({
+            name: v.string(),
+            type: v.union(v.literal("text"), v.literal("number"), v.literal("select")),
+            options: v.optional(v.array(v.string())),
+            affects_price: v.boolean(),
+            price_modifier: v.optional(v.number()),
+        })),
+    }).index("by_organization", ["organizationId"]),
+
+    assessments: defineTable({
+        organizationId: v.id("organizations"),
+        clientId: v.id("users"),
+        vehicleDetails: v.object({
+            make: v.string(),
+            model: v.string(),
+            year: v.number(),
+            vin: v.optional(v.string()),
+        }),
+        selectedServices: v.array(v.object({
+            serviceId: v.id("services"),
+            quantity: v.number(),
+            customFields: v.array(v.object({
+                name: v.string(),
+                value: v.union(v.string(), v.number()),
+            })),
+        })),
+        hotspotAssessment: v.array(v.object({
+            part: v.string(),
+            issue: v.string(),
+        })),
+        mediaFiles: v.array(v.object({
+            url: v.string(),
+            type: v.string(),
+            name: v.string(),
+        })),
+        estimatedPrice: v.number(),
+        status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_organization", ["organizationId"]).index("by_client", ["clientId"]),
+
+    users: defineTable({
+        clerkId: v.string(),
+        email: v.string(),
+        name: v.string(),
+        role: v.union(v.literal("admin"), v.literal("staff"), v.literal("client")),
+    }).index("by_clerk_id", ["clerkId"]),
+
+    organizationMemberships: defineTable({
+        userId: v.id("users"),
+        organizationId: v.id("organizations"),
+        role: v.union(v.literal("owner"), v.literal("admin"), v.literal("staff")),
+    }).index("by_user_and_org", ["userId", "organizationId"]),
 });
