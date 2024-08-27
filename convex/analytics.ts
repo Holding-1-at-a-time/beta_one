@@ -316,3 +316,126 @@ export const cacheAnalyticsData = mutation({
         });
     },
 });
+
+export const getAnalyticsData = query({
+    args: { organizationId: v.string() },
+    handler: async (ctx, args) => {
+        // Fetch assessments for the organization
+        const assessments = await ctx.db
+            .query('assessments')
+            .withIndex('by_organization', (q) => q.eq('organizationId', args.organizationId))
+            .collect();
+
+        // Calculate revenue data
+        const revenueData = calculateRevenueData(assessments);
+
+        // Calculate service popularity
+        const servicePopularity = calculateServicePopularity(assessments);
+
+        // Calculate efficiency data
+        const efficiencyData = calculateEfficiencyData(assessments);
+
+        // Calculate service satisfaction
+        const serviceSatisfaction = calculateServiceSatisfaction(assessments);
+
+        // Calculate client retention
+        const clientRetention = calculateClientRetention(assessments);
+
+        return {
+            businessInsights: {
+                revenue: revenueData,
+                servicePopularity: servicePopularity,
+            },
+            performanceMetrics: {
+                efficiency: efficiencyData,
+                serviceSatisfaction: serviceSatisfaction,
+            },
+            clientReports: {
+                clientRetention: clientRetention,
+            },
+        };
+    },
+});
+
+// Helper functions
+
+function calculateRevenueData(assessments) {
+    const revenueByDate = assessments.reduce((acc, assessment) => {
+        const date = assessment.createdAt.split('T')[0];
+        acc[date] = (acc[date] || 0) + assessment.estimatedPrice;
+        return acc;
+    }, {});
+
+    return Object.entries(revenueByDate)
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function calculateServicePopularity(assessments) {
+    const serviceCounts = assessments.reduce((acc, assessment) => {
+        assessment.selectedServices.forEach(service => {
+            acc[service.name] = (acc[service.name] || 0) + 1;
+        });
+        return acc;
+    }, {});
+
+    return Object.entries(serviceCounts)
+        .map(([service, count]) => ({ service, count }))
+        .sort((a, b) => b.count - a.count);
+}
+
+function calculateEfficiencyData(assessments) {
+    // This is a placeholder calculation. In a real-world scenario, you'd need to
+    // define what "efficiency" means for your business and calculate it accordingly.
+    return assessments.map(assessment => ({
+        date: assessment.createdAt.split('T')[0],
+        score: Math.random() * 100, // placeholder random score
+    })).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function calculateServiceSatisfaction(assessments) {
+    // This assumes you have a rating system in place for each service
+    const serviceSatisfaction = assessments.reduce((acc, assessment) => {
+        assessment.selectedServices.forEach(service => {
+            if (!acc[service.name]) {
+                acc[service.name] = { total: 0, count: 0 };
+            }
+            acc[service.name].total += service.rating || 0;
+            acc[service.name].count += 1;
+        });
+        return acc;
+    }, {});
+
+    return Object.entries(serviceSatisfaction)
+        .map(([service, data]) => ({
+            service,
+            score: data.count > 0 ? data.total / data.count : 0,
+        }))
+        .sort((a, b) => b.score - a.score);
+}
+
+function calculateClientRetention(assessments) {
+    const clientsByMonth = assessments.reduce((acc, assessment) => {
+        const month = assessment.createdAt.substring(0, 7); // YYYY-MM
+        if (!acc[month]) {
+            acc[month] = { new: new Set(), returning: new Set() };
+        }
+
+        const clientId = assessment.clientId;
+        if (Object.values(acc).some(monthData => monthData.new.has(clientId) || monthData.returning.has(clientId))) {
+            acc[month].returning.add(clientId);
+        } else {
+            acc[month].new.add(clientId);
+        }
+
+        return acc;
+    }, {});
+
+    return Object.entries(clientsByMonth)
+        .map(([month, data]) => ({
+            month,
+            newClients: data.new.size,
+            returningClients: data.returning.size,
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+}

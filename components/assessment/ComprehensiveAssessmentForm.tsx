@@ -1,3 +1,5 @@
+'use client';
+ 
 import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { useQuery, useMutation } from 'convex/react';
@@ -98,138 +100,165 @@ export function ComprehensiveAssessmentForm() {
             setIsSubmitting(false);
         }
     };
-    useEffect(() => {
-        if (services) {
-            methods.reset({
-                ...methods.getValues(),
-                selectedServices: services.map(service => ({
-                    serviceId: service._id,
-                    quantity: 1,
-                    customFields: service.customFields.map(field => ({ name: field.name, value: '' })),
-                })),
-            });
-        }
-    }, [services, methods]);
+    const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
+
     if (!services) {
         return <div>Loading services...</div>;
     }
-    return (
-        <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
-                <Card>
-                    <CardHeader>Vehicle Details</CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="make">Make</Label>
-                                <Input id="make" {...methods.register('vehicleDetails.make')} />
-                                {methods.formState.errors.vehicleDetails?.make && (
-                                    <p className="text-red-500">{methods.formState.errors.vehicleDetails.make.message}</p>
-                                )}
-                            </div>
-                            <div>
-                                <Label htmlFor="model">Model</Label>
-                                <Input id="model" {...methods.register('vehicleDetails.model')} />
-                                {methods.formState.errors.vehicleDetails?.model && (
-                                    <p className="text-red-500">{methods.formState.errors.vehicleDetails.model.message}</p>
-                                )}
-                            </div>
-                            <div>
-                                <Label htmlFor="year">Year</Label>
-                                <Input id="year" type="number" {...methods.register('vehicleDetails.year', { valueAsNumber: true })} />
-                                {methods.formState.errors.vehicleDetails?.year && (
-                                    <p className="text-red-500">{methods.formState.errors.vehicleDetails.year.message}</p>
-                                )}
-                            </div>
-                            <div>
-                                <Label htmlFor="vin">VIN (Optional)</Label>
-                                <Input id="vin" {...methods.register('vehicleDetails.vin')} />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                Copy    <Card>
-                    <CardHeader>Vehicle Condition Assessment</CardHeader>
-                    <CardContent>
-                        <VehicleHotspotAssessment
-                            onAssessment={(assessment) => methods.setValue('hotspotAssessment', assessment)}
-                        />
-                    </CardContent>
-                </Card>
 
-                <Card>
-                    <CardHeader>Service Selection</CardHeader>
-                    <CardContent>
-                        {fields.map((field, index) => (
-                            <div key={field.id} className="mb-4 p-4 border rounded">
-                                <Select
-                                    value={field.serviceId}
-                                    onValueChange={(value) => methods.setValue(`selectedServices.${index}.serviceId`, value)}
-                                >
-                                    {services.map((service) => (
-                                        <option key={service._id} value={service._id}>{service.name}</option>
-                                    ))}
-                                </Select>
-                                <Input
-                                    type="number"
-                                    {...methods.register(`selectedServices.${index}.quantity`, { valueAsNumber: true })}
-                                    className="mt-2"
-                                />
-                                {services.find(s => s._id === field.serviceId)?.customFields.map((customField, fieldIndex) => (
-                                    <div key={fieldIndex} className="mt-2">
-                                        <Label>{customField.name}</Label>
-                                        {customField.type === 'select' ? (
-                                            <Select
-                                                value={methods.watch(`selectedServices.${index}.customFields.${fieldIndex}.value`)}
-                                                onValueChange={(value) => methods.setValue(`selectedServices.${index}.customFields.${fieldIndex}.value`, value)}
-                                            >
-                                                {customField.options?.map((option) => (
-                                                    <option key={option} value={option}>{option}</option>
-                                                ))}
-                                            </Select>
-                                        ) : (
-                                            <Input
-                                                type={customField.type === 'number' ? 'number' : 'text'}
-                                                {...methods.register(`selectedServices.${index}.customFields.${fieldIndex}.value`)}
-                                            />
-                                        )}
-                                    </div>
-                                ))}
-                                <Button type="button" onClick={() => remove(index)} className="mt-2">Remove Service</Button>
-                            </div>
-                        ))}
-                        <Button type="button" onClick={() => append({ serviceId: services[0]._id, quantity: 1, customFields: [] })}>
-                            Add Service
-                        </Button>
-                    </CardContent>
-                </Card>
+    const handleServiceSelection = async (selectedServices: string[]) => {
+        try {
+            const duration = await estimateDuration({ services: selectedServices });
+            setEstimatedDuration(duration);
+        } catch (error) {
+            console.error('Failed to estimate duration:', error);
+        }
+    };
 
-                <Card>
-                    <CardHeader>Upload Images/Videos</CardHeader>
-                    <CardContent>
-                        <FileUploadsComponent
-                            onUploadsComplete={(files) => methods.setValue('mediaFiles', files)}
-                        />
-                    </CardContent>
-                </Card>
+        const handleServiceSelection = async (selectedServices: string[]) => {
+            try {
+                const duration = await estimateDuration({ services: selectedServices });
+                setEstimatedDuration(duration);
+            } catch (error) {
+                console.error('Failed to estimate duration:', error);
+            }
+        };
 
-                {assessmentId && (
+        return (
+            <FormProvider {...methods}>
+                <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
                     <Card>
-                        <CardHeader>Assessment Summary</CardHeader>
+                        <CardHeader>Service Selection</CardHeader>
                         <CardContent>
-                            <RealTimeSummary assessmentId={assessmentId} />
+                            <handleServiceSelection
+                                services={services}
+                                onSelectionChange={handleServiceSelection}
+                            />
+                            {estimatedDuration && (
+                                <p className="mt-2">Estimated Duration: {estimatedDuration} minutes</p>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                    /
+                </form>
+                return (
+                <FormProvider {...methods}>
+                    <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
+                        <Card>
+                            <CardHeader>Vehicle Details</CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="make">Make</Label>
+                                        <Input id="make" {...methods.register('vehicleDetails.make')} />
+                                        {methods.formState.errors.vehicleDetails?.make && (
+                                            <p className="text-red-500">{methods.formState.errors.vehicleDetails.make.message}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="model">Model</Label>
+                                        <Input id="model" {...methods.register('vehicleDetails.model')} />
+                                        {methods.formState.errors.vehicleDetails?.model && (
+                                            <p className="text-red-500">{methods.formState.errors.vehicleDetails.model.message}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="year">Year</Label>
+                                        <Input id="year" type="number" {...methods.register('vehicleDetails.year', { valueAsNumber: true })} />
+                                        {methods.formState.errors.vehicleDetails?.year && (
+                                            <p className="text-red-500">{methods.formState.errors.vehicleDetails.year.message}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="vin">VIN (Optional)</Label>
+                                        <Input id="vin" {...methods.register('vehicleDetails.vin')} />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        Copy    <Card>
+                            <CardHeader>Vehicle Condition Assessment</CardHeader>
+                            <CardContent>
+                                <VehicleHotspotAssessment
+                                    onAssessment={(assessment) => methods.setValue('hotspotAssessment', assessment)}
+                                />
+                            </CardContent>
+                        </Card>
 
-                {error && (
-                    <div className="text-red-500 mb-4">{error}</div>
-                )}
+                        <Card>
+                            <CardHeader>Service Selection</CardHeader>
+                            <CardContent>
+                                {fields.map((field, index) => (
+                                    <div key={field.id} className="mb-4 p-4 border rounded">
+                                        <Select
+                                            value={field.serviceId}
+                                            onValueChange={(value) => methods.setValue(`selectedServices.${index}.serviceId`, value)}
+                                        >
+                                            {services.map((service) => (
+                                                <option key={service._id} value={service._id}>{service.name}</option>
+                                            ))}
+                                        </Select>
+                                        <Input
+                                            type="number"
+                                            {...methods.register(`selectedServices.${index}.quantity`, { valueAsNumber: true })}
+                                            className="mt-2"
+                                        />
+                                        {services.find(s => s._id === field.serviceId)?.customFields.map((customField, fieldIndex) => (
+                                            <div key={fieldIndex} className="mt-2">
+                                                <Label>{customField.name}</Label>
+                                                {customField.type === 'select' ? (
+                                                    <Select
+                                                        value={methods.watch(`selectedServices.${index}.customFields.${fieldIndex}.value`)}
+                                                        onValueChange={(value) => methods.setValue(`selectedServices.${index}.customFields.${fieldIndex}.value`, value)}
+                                                    >
+                                                        {customField.options?.map((option) => (
+                                                            <option key={option} value={option}>{option}</option>
+                                                        ))}
+                                                    </Select>
+                                                ) : (
+                                                    <Input
+                                                        type={customField.type === 'number' ? 'number' : 'text'}
+                                                        {...methods.register(`selectedServices.${index}.customFields.${fieldIndex}.value`)}
+                                                    />
+                                                )}
+                                            </div>
+                                        ))}
+                                        <Button type="button" onClick={() => remove(index)} className="mt-2">Remove Service</Button>
+                                    </div>
+                                ))}
+                                <Button type="button" onClick={() => append({ serviceId: services[0]._id, quantity: 1, customFields: [] })}>
+                                    Add Service
+                                </Button>
+                            </CardContent>
+                        </Card>
 
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
-                </Button>
-            </form>
-        </FormProvider>
-    );
+                        <Card>
+                            <CardHeader>Upload Images/Videos</CardHeader>
+                            <CardContent>
+                                <FileUploadsComponent
+                                    onUploadsComplete={(files) => methods.setValue('mediaFiles', files)}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {assessmentId && (
+                            <Card>
+                                <CardHeader>Assessment Summary</CardHeader>
+                                <CardContent>
+                                    <RealTimeSummary assessmentId={assessmentId} />
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {error && (
+                            <div className="text-red-500 mb-4">{error}</div>
+                        )}
+
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
+                        </Button>
+                    </form>
+                </FormProvider>
+            </FormProvider>
+        )
 }

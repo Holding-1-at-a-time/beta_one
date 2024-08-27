@@ -31,11 +31,14 @@ export default function RootLayout({
           <html lang="en">
             {/* Ensure SpeedInsights receives correct children prop */}
             <SpeedInsights>
-              <div>
-                <body className={`${geistSans.variable} ${geistMono.variable}`}>
-                  {children}
-                </body>
-              </div>
+              <ToastProvider>
+                <div>
+                  <useToast />
+                  <body className={`${geistSans.variable} ${geistMono.variable}`}>
+                    {children}
+                  </body>
+                </div>
+              </ToastProvider>
             </SpeedInsights>
           </html>
         </Analytics>

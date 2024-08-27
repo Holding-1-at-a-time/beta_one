@@ -207,3 +207,16 @@ const updateAssessmentWithAIInsights = mutation({
         await ctx.db.patch(assessmentId, { aiInsights, updatedAt: new Date().toISOString() });
     },
 });
+
+export const getRecentAssessments = query({
+    args: { organizationId: v.string() },
+    handler: async (ctx, args) => {
+        const assessments = await ctx.db
+            .query('assessments')
+            .withIndex('by_organization', (q) => q.eq('organizationId', args.organizationId))
+            .order('desc')
+            .take(8);
+
+        return assessments;
+    },
+});

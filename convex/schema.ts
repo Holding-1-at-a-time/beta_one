@@ -15,24 +15,7 @@ export default defineSchema({
         .index("by_organization", ["organizationId"])
         .index("by_subscription_status", ["subscriptionStatus"]),
 
-    assessments: defineTable({
-        tenantId: v.id("tenants"),
-        clientName: v.string(),
-        clientEmail: v.string(),
-        vehicleMake: v.string(),
-        vehicleModel: v.string(),
-        vehicleYear: v.number(),
-        assessmentData: v.array(v.object({
-            question: v.string(),
-            answer: v.string(),
-        })),
-        estimateAmount: v.number(),
-        status: v.string(),
-        createdAt: v.number(),
-        updatedAt: v.number(),
-    })
-        .index("by_tenant", ["tenantId"])
-        .index("by_status", ["status"]),
+    
 
     payments: defineTable({
         assessmentId: v.id("assessments"),
@@ -143,20 +126,6 @@ export default defineSchema({
         }),
     }),
 
-    services: defineTable({
-        organizationId: v.id("organizations"),
-        name: v.string(),
-        description: v.string(),
-        basePrice: v.number(),
-        customFields: v.array(v.object({
-            name: v.string(),
-            type: v.union(v.literal("text"), v.literal("number"), v.literal("select")),
-            options: v.optional(v.array(v.string())),
-            affects_price: v.boolean(),
-            price_modifier: v.optional(v.number()),
-        })),
-    }).index("by_organization", ["organizationId"]),
-
     assessments: defineTable({
         organizationId: v.id("organizations"),
         clientId: v.id("users"),
@@ -196,9 +165,58 @@ export default defineSchema({
         role: v.union(v.literal("admin"), v.literal("staff"), v.literal("client")),
     }).index("by_clerk_id", ["clerkId"]),
 
-    organizationMemberships: defineTable({
-        userId: v.id("users"),
-        organizationId: v.id("organizations"),
-        role: v.union(v.literal("owner"), v.literal("admin"), v.literal("staff")),
-    }).index("by_user_and_org", ["userId", "organizationId"]),
+
+    bookings: defineTable({
+        organizationId: v.string(),
+        userId: v.string(),
+        serviceId: v.id("services"),
+        appointmentId: v.id("appointments"),
+        status: v.union(v.literal("confirmed"), v.literal("cancelled"), v.literal("completed"), v.literal("pending")),
+        totalPrice: v.number(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        deletedAt: v.optional(v.number()),
+    })
+        .index("by_organization", ["organizationId"])
+        .index("by_user", ["organizationId", "userId"])
+        .index("by_status", ["organizationId", "status"])
+        .index("by_appointment", ["appointmentId"])
+        .index("by_created", ["organizationId", "createdAt"]),
+
+    appointments: defineTable({
+        organizationId: v.string(),
+        startTime: v.number(),
+        endTime: v.number(),
+        status: v.union(v.literal("available"), v.literal("booked"), v.literal("unavailable")),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        deletedAt: v.optional(v.number()),
+    })
+        .index("by_organization", ["organizationId"])
+        .index("by_time", ["organizationId", "startTime"])
+        .index("by_status", ["organizationId", "status"]),
+
+    availableSlots: defineTable({
+        organizationId: v.string(),
+        startTime: v.number(),
+        endTime: v.number(),
+        createdAt: v.number(),
+        deletedAt: v.optional(v.number()),
+    })
+        .index("by_organization", ["organizationId"])
+        .index("by_time", ["organizationId", "startTime"]),
+
+
+    auditLogs: defineTable({
+        organizationId: v.string(),
+        userId: v.string(),
+        action: v.string(),
+        resourceType: v.string(),
+        resourceId: v.string(),
+        details: v.string(),
+        timestamp: v.number(),
+    })
+        .index("by_organization", ["organizationId"])
+        .index("by_user", ["organizationId", "userId"])
+        .index("by_action", ["organizationId", "action"]),
 });

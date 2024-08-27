@@ -66,3 +66,61 @@ export const getServices = query({
         return services;
     },
 });
+
+export const getPreviousServices = query({
+    args: {
+        vehicleId: v.string(),
+        userId: v.string(),
+        organizationId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const { vehicleId, userId, organizationId } = args;
+
+        const previousServices = await ctx.db
+            .query('bookings')
+            .withIndex('by_vehicle_and_organization', (q) =>
+                q.eq('vehicleId', vehicleId)
+                    .eq('organizationId', organizationId)
+            )
+            .filter((q) => q.eq(q.field('userId'), userId))
+            .order('desc')
+            .collect();
+
+        return previousServices.map((booking) => ({
+            id: booking._id,
+            name: booking.serviceName,
+            date: booking.date,
+        }));
+    },
+});
+
+export const createBooking = mutation({
+    args: {
+        serviceId: v.string(),
+        vehicleId: v.string(),
+        userId: v.string(),
+        organizationId: v.string(),
+        slot: v.object({
+            startTime: v.string(),
+            endTime: v.string(),
+        }),
+    },
+    handler: async (ctx, args) => {
+        const { serviceId, vehicleId, userId, organizationId, slot } = args;
+
+        // Implement booking creation logic here
+        // This might involve checking availability, creating the booking record, etc.
+
+        const bookingId = await ctx.db.insert('bookings', {
+            serviceId,
+            vehicleId,
+            userId,
+            organizationId,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            status: 'confirmed',
+        });
+
+        return bookingId;
+    },
+});
