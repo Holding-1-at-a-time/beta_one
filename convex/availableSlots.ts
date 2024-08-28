@@ -7,7 +7,7 @@ import { logAuditEvent } from "./utils/logging";
 
 export const createAvailableSlots = mutation({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         slots: v.array(
             v.object({
                 startTime: v.number(),

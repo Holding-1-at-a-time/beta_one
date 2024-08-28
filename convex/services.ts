@@ -4,7 +4,7 @@ import { v } from "convex/values";
 
 export const createService = mutation({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         name: v.string(),
         description: v.string(),
         basePrice: v.number(),
@@ -70,8 +70,8 @@ export const getServices = query({
 export const getPreviousServices = query({
     args: {
         vehicleId: v.string(),
-        userId: v.string(),
-        organizationId: v.string(),
+        userId: v.id(users),
+        organizationId: v.id('organizations'),
     },
     handler: async (ctx, args) => {
         const { vehicleId, userId, organizationId } = args;
@@ -98,8 +98,8 @@ export const createBooking = mutation({
     args: {
         serviceId: v.string(),
         vehicleId: v.string(),
-        userId: v.string(),
-        organizationId: v.string(),
+        userId: v.id(users),
+        organizationId: v.id('organizations'),
         slot: v.object({
             startTime: v.string(),
             endTime: v.string(),

@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 export const generateOrUpdateQRCode = mutation({
   args: {
     name: v.string(),
-    organizationId: v.string(),
+    organizationId: v.id('organizations'),
     contactEmail: v.string(),
     contactPhone: v.optional(v.string()),
   },

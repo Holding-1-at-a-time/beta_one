@@ -34,7 +34,7 @@ export const getSettings = query({
 
 export const updateSettings = mutation({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         companyName: v.optional(v.string()),
         companyAddress: v.optional(v.string()),
         companyPhone: v.optional(v.string()),

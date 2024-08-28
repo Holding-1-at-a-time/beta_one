@@ -117,7 +117,7 @@ export const getAnalyticsData = query({
 
 export const getDetailedAnalyticsData = query({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         timeRange: v.union(v.literal('day'), v.literal('week'), v.literal('month'), v.literal('quarter'), v.literal('year'))
     },
     handler: async (ctx, args): Promise<DetailedAnalyticsData> => {
@@ -272,7 +272,7 @@ export const getDetailedAnalyticsData = query({
 // Mutation for caching analytics data
 export const cacheAnalyticsData = mutation({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         timeRange: v.union(v.literal('day'), v.literal('week'), v.literal('month'), v.literal('quarter'), v.literal('year')),
         data: v.object({
             totalRevenue: v.number(),

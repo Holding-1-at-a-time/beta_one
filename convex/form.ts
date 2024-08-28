@@ -5,7 +5,7 @@ import { v } from "convex/values";
 
 export const createAssessmentForm = mutation({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         name: v.string(),
         description: v.string(),
         sections: v.array(v.object({

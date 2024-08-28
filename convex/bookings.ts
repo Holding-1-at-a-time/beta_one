@@ -184,7 +184,7 @@ import { caching } from "./utils/caching";
 
 export const getAvailableSlots = caching(query({
     args: {
-        organizationId: v.string(),
+        organizationId: v.id('organizations'),
         startDate: v.number(),
         endDate: v.number(),
         page: v.number(),
