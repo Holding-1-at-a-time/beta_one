@@ -27,11 +27,13 @@ export default function AppointmentsPage() {
                     <DialogHeader>
                         <DialogTitle>Create New Appointment</DialogTitle>
                     </DialogHeader>
-                    <AppointmentForm
-                        onSubmit={handleAppointmentSubmit}
-                        onCancel={() => setIsCreatingAppointment(false)}
-                        selectedDate={new Date()}
-                    />
+                    <Suspense fallback={<Spinner />}>
+
+                        <AppointmentForm
+                            onSubmit={handleAppointmentSubmit}
+                            onCancel={() => setIsCreatingAppointment(false)}
+                            selectedDate={new Date()}
+                        />
                 </DialogContent>
             </Dialog>
         </div>

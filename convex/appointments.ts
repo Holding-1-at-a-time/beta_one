@@ -2,10 +2,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { AppointmentStatus } from "@/types/appointment";
+import { AppointmentStatus } from "./types/appointment";
 
-
-export const getAppointments = query({
+export const getAppointments = query<{
+    organizationId: Id;
+    page?: number;
+    pageSize?: number;
+}, Appointment[]>({
     args: {
         organizationId: v.id('organizations'),
         page: v.optional(v.number()),
@@ -24,9 +27,12 @@ export const getAppointments = query({
     },
 });
 
-
-export const listByOrganization = query({
-    args: { organizationId: v.string() },
+export const listByOrganization = query<{
+    organizationId: Id;
+}, Appointment[]>({
+    args: {
+        organizationId: v.id('organizations'),
+    },
     handler: async (ctx, args) => {
         const appointments = await ctx.db
             .query("appointments")
@@ -37,7 +43,13 @@ export const listByOrganization = query({
     },
 });
 
-export const create = mutation({
+export const create = mutation<{
+    organizationId: Id;
+    clientId: Id;
+    service: string;
+    date: string;
+    notes?: string;
+}, Id>({
     args: {
         organizationId: v.id('organizations'),
         clientId: v.id("clients"),
@@ -52,20 +64,30 @@ export const create = mutation({
             service: args.service,
             date: args.date,
             notes: args.notes,
-            status: "Scheduled",
+            status: "Scheduled" as AppointmentStatus,
             createdAt: new Date().toISOString(),
         });
         return appointmentId;
     },
 });
 
-export const update = mutation({
+export const update = mutation<{
+    id: Id;
+    service?: string;
+    date?: string;
+    notes?: string;
+    status?: AppointmentStatus;
+}, void>({
     args: {
         id: v.id("appointments"),
         service: v.optional(v.string()),
         date: v.optional(v.string()),
         notes: v.optional(v.string()),
-        status: v.optional(v.string()),
+        status: v.optional(v.union(
+            v.literal("Scheduled"),
+            v.literal("Completed"),
+            v.literal("Cancelled")
+        )),
     },
     handler: async (ctx, args) => {
         const { id, ...updateFields } = args;
@@ -73,14 +95,24 @@ export const update = mutation({
     },
 });
 
-export const cancel = mutation({
-    args: { id: v.id("appointments") },
+export const cancel = mutation<{
+    id: Id;
+}, void>({
+    args: {
+        id: v.id("appointments"),
+    },
     handler: async (ctx, args) => {
-        await ctx.db.patch(args.id, { status: "Cancelled" });
+        await ctx.db.patch(args.id, { status: "Cancelled" as AppointmentStatus });
     },
 });
 
-export const listByOrganization = query({
+export const listByOrganizationAndDate = query<{
+    organizationId: Id;
+    startDate: string;
+    endDate: string;
+    page: number;
+    pageSize: number;
+}, Appointments[]>({
     args: {
         organizationId: v.id('organizations'),
         startDate: v.string(),
@@ -95,115 +127,12 @@ export const listByOrganization = query({
             .query("appointments")
             .withIndex("by_organization_and_date", (q) =>
                 q.eq("organizationId", organizationId)
-                    .gte("date", startDate)
-                    .lt("date", endDate)
+                .gte("date", startDate)
+                .lt("date", endDate)
             )
             .order("desc")
             .paginate({ page, pageSize });
 
         return appointments;
-    },
-});
-
-export const create = mutation({
-    args: {
-        organizationId: v.id('organizations'),
-        customer: v.string(),
-        service: v.string(),
-        date: v.string(),
-        notes: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const { organizationId, customer, service, date, notes } = args;
-
-        const user = await ctx.auth.getUserIdentity();
-        if (!user) {
-            throw new Error("Unauthenticated");
-        }
-
-        const appointmentId = await ctx.db.insert("appointments", {
-            organizationId,
-            customer,
-            service,
-            date,
-            notes,
-            status: "scheduled" as AppointmentStatus,
-            createdBy: user.subject,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        });
-
-        return appointmentId;
-    },
-});
-
-export const update = mutation({
-    args: {
-        id: v.id("appointments"),
-        customer: v.optional(v.string()),
-        service: v.optional(v.string()),
-        date: v.optional(v.string()),
-        notes: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("scheduled"), v.literal("completed"), v.literal("cancelled"))),
-    },
-    handler: async (ctx, args) => {
-        const { id, ...updateFields } = args;
-
-        const user = await ctx.auth.getUserIdentity();
-        if (!user) {
-            throw new Error("Unauthenticated");
-        }
-
-        const appointment = await ctx.db.get(id);
-        if (!appointment) {
-            throw new Error("Appointment not found");
-        }
-
-        const userRoles = await ctx.auth.getUserRoles(user.subject);
-        const isAdmin = userRoles.includes("admin");
-        const isOrganizationAdmin = userRoles.includes("organization-admin");
-        const isServiceTechnician = userRoles.includes("service-technician");
-        const isServiceTechnicianOfTheAppointment = appointment.serviceTechnician === user.subject;
-
-        if (!isAdmin && !isOrganizationAdmin && !isServiceTechnician && !isServiceTechnicianOfTheAppointment) {
-            throw new Error("Unauthorized");
-        }
-
-        await ctx.db.patch(id, {
-            ...updateFields,
-            updatedAt: new Date().toISOString(),
-        });
-    },
-});
-
-export const cancel = mutation({
-    args: { id: v.id("appointments") },
-    handler: async (ctx, args) => {
-        const { id } = args;
-
-        const user = await ctx.auth.getUserIdentity();
-        if (!user) {
-            throw new Error("Unauthenticated");
-        }
-
-        const appointment = await ctx.db.get(id);
-        if (!appointment) {
-            throw new Error("Appointment not found");
-        }
-
-        const userRoles = await ctx.auth.getUserRoles(user.subject);
-        const isAdmin = userRoles.includes("admin");
-        const isOrganizationAdmin = userRoles.includes("organization-admin");
-        const isServiceTechnician = userRoles.includes("service-technician");
-        const isServiceTechnicianOfTheAppointment = appointment.serviceTechnician === user.subject;
-
-        if (!isAdmin && !isOrganizationAdmin && !isServiceTechnician && !isServiceTechnicianOfTheAppointment) {
-            throw new Error("Unauthorized");
-        }
-
-        await ctx.db.patch(id, {
-            status: "cancelled" as AppointmentStatus,
-            updatedAt: new Date().toISOString(),
-        });
     },
 });

@@ -1,17 +1,11 @@
 // components/layouts/CoreLayout.tsx
 import React from "react";
-import { MainNavigation } from "../navigation/MainNavigationComponent";
+import { MainNavigation } from "./MainNavigationComponent";
 
 interface CoreLayoutProps {
     children: React.ReactNode;
 }
 
-/**
- * Renders the core layout component.
- * @param {CoreLayoutProps} props - The props for the component.
- * @param {React.ReactNode} props.children - The child components to render.
- * @return {React.ReactElement} The rendered core layout component.
- */
 export const CoreLayout: React.FC<CoreLayoutProps> = ({ children }) => {
     return (
         <div className="min-h-screen bg-gradient-multi flex flex-col">

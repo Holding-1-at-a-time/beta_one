@@ -1,6 +1,7 @@
 // convex/analytics.ts
 import { query, mutation } from './_generated/server';
 import { ConvexError, v } from 'convex/values';
+import { Id } from './_generated/dataModel';
 
 // Type definitions
 type TimeRange = 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -57,7 +58,7 @@ const getDateRangeFilter = (timeRange: TimeRange): { start: Date; end: Date } =>
 
 // Queries
 export const getAnalyticsData = query({
-    args: { organizationId: v.string() },
+    args: { organizationId: v.id('organizations') },
     handler: async (ctx, args): Promise<AnalyticsData> => {
         const { organizationId } = args;
 
@@ -67,14 +68,14 @@ export const getAnalyticsData = query({
         const membership = await ctx.db
             .query('organizationMemberships')
             .withIndex('by_user_org', (q) =>
-                q.eq('userId', user.subject).eq('organizationId', organizationId)
+                q.eq('userId', user.subject as Id<"users">).eq('organizationId', organizationId)
             )
             .unique();
         if (!membership) throw new ConvexError('User is not a member of this organization');
 
         // Fetch data from the database
         const clients = await ctx.db
-            .query('clients')
+            .query('users')
             .withIndex('by_organization', (q) => q.eq('organizationId', organizationId))
             .collect();
 
@@ -90,7 +91,7 @@ export const getAnalyticsData = query({
 
         // Calculate metrics
         const totalRevenue = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
-        const activeClients = new Set(clients.filter(client => client.isActive).map(client => client._id)).size;
+        const activeClients = clients.filter(client => client.role !== 'non-member').length;
         const pendingInvoices = invoices.filter(invoice => invoice.status === 'pending').length;
         const completedJobs = jobs.filter(job => job.status === 'completed').length;
 
@@ -129,7 +130,7 @@ export const getDetailedAnalyticsData = query({
         const membership = await ctx.db
             .query('organizationMemberships')
             .withIndex('by_user_org', (q) =>
-                q.eq('userId', user.subject).eq('organizationId', organizationId)
+                q.eq('userId', user.subject as Id<"users">).eq('organizationId', organizationId)
             )
             .unique();
         if (!membership) throw new ConvexError('User is not a member of this organization');
@@ -138,7 +139,7 @@ export const getDetailedAnalyticsData = query({
 
         // Fetch data from the database
         const clients = await ctx.db
-            .query('clients')
+            .query('users')
             .withIndex('by_organization', (q) => q.eq('organizationId', organizationId))
             .collect();
 
@@ -167,10 +168,10 @@ export const getDetailedAnalyticsData = query({
             .reduce((sum, invoice) => sum + invoice.amount, 0);
         const revenueTrend = calculateTrend(totalRevenue, previousPeriodRevenue);
 
-        const newClients = clients.filter(client => new Date(client.createdAt) >= start).length;
+        const newClients = clients.filter(client => new Date(client.createdAt as string) >= start).length;
         const previousPeriodNewClients = clients.filter(client =>
-            new Date(client.createdAt) < start &&
-            new Date(client.createdAt) >= new Date(start.getTime() - (end.getTime() - start.getTime()))
+            new Date(client.createdAt as string) < start &&
+            new Date(client.createdAt as string) >= new Date(start.getTime() - (end.getTime() - start.getTime()))
         ).length;
         const clientsTrend = calculateTrend(newClients, previousPeriodNewClients);
 
@@ -209,10 +210,10 @@ export const getDetailedAnalyticsData = query({
         }, [] as Array<{ name: string; value: number }>);
 
         const clientAcquisitionRetention = clients.reduce((acc, client) => {
-            const date = client.createdAt.split('T')[0];
+            const date = (client.createdAt as string).split('T')[0];
             const existingEntry = acc.find(entry => entry.date === date);
             if (existingEntry) {
-                if (new Date(client.createdAt) >= start) {
+                if (new Date(client.createdAt as string) >= start) {
                     existingEntry.newClients++;
                 } else {
                     existingEntry.returningClients++;
@@ -220,8 +221,8 @@ export const getDetailedAnalyticsData = query({
             } else {
                 acc.push({
                     date,
-                    newClients: new Date(client.createdAt) >= start ? 1 : 0,
-                    returningClients: new Date(client.createdAt) >= start ? 0 : 1
+                    newClients: new Date(client.createdAt as string) >= start ? 1 : 0,
+                    returningClients: new Date(client.createdAt as string) >= start ? 0 : 1
                 });
             }
             return acc;
@@ -257,7 +258,7 @@ export const getDetailedAnalyticsData = query({
             jobValueTrend,
             customerSatisfaction,
             satisfactionTrend,
-            activeClients: clients.filter(client => client.isActive).length,
+            activeClients: clients.filter(client => client.role !== 'non-member').length,
             pendingInvoices: invoices.filter(invoice => invoice.status === 'pending').length,
             completedJobs: jobs.filter(job => job.status === 'completed').length,
             revenueData: revenueOverTime,
@@ -302,7 +303,7 @@ export const cacheAnalyticsData = mutation({
         const membership = await ctx.db
             .query('organizationMemberships')
             .withIndex('by_user_org', (q) =>
-                q.eq('userId', user.subject).eq('organizationId', organizationId)
+                q.eq('userId', user.subject as Id<"users">).eq('organizationId', organizationId)
             )
             .unique();
         if (!membership) throw new ConvexError('User is not a member of this organization');
@@ -316,126 +317,3 @@ export const cacheAnalyticsData = mutation({
         });
     },
 });
-
-export const getAnalyticsData = query({
-    args: { organizationId: v.string() },
-    handler: async (ctx, args) => {
-        // Fetch assessments for the organization
-        const assessments = await ctx.db
-            .query('assessments')
-            .withIndex('by_organization', (q) => q.eq('organizationId', args.organizationId))
-            .collect();
-
-        // Calculate revenue data
-        const revenueData = calculateRevenueData(assessments);
-
-        // Calculate service popularity
-        const servicePopularity = calculateServicePopularity(assessments);
-
-        // Calculate efficiency data
-        const efficiencyData = calculateEfficiencyData(assessments);
-
-        // Calculate service satisfaction
-        const serviceSatisfaction = calculateServiceSatisfaction(assessments);
-
-        // Calculate client retention
-        const clientRetention = calculateClientRetention(assessments);
-
-        return {
-            businessInsights: {
-                revenue: revenueData,
-                servicePopularity: servicePopularity,
-            },
-            performanceMetrics: {
-                efficiency: efficiencyData,
-                serviceSatisfaction: serviceSatisfaction,
-            },
-            clientReports: {
-                clientRetention: clientRetention,
-            },
-        };
-    },
-});
-
-// Helper functions
-
-function calculateRevenueData(assessments) {
-    const revenueByDate = assessments.reduce((acc, assessment) => {
-        const date = assessment.createdAt.split('T')[0];
-        acc[date] = (acc[date] || 0) + assessment.estimatedPrice;
-        return acc;
-    }, {});
-
-    return Object.entries(revenueByDate)
-        .map(([date, amount]) => ({ date, amount }))
-        .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function calculateServicePopularity(assessments) {
-    const serviceCounts = assessments.reduce((acc, assessment) => {
-        assessment.selectedServices.forEach(service => {
-            acc[service.name] = (acc[service.name] || 0) + 1;
-        });
-        return acc;
-    }, {});
-
-    return Object.entries(serviceCounts)
-        .map(([service, count]) => ({ service, count }))
-        .sort((a, b) => b.count - a.count);
-}
-
-function calculateEfficiencyData(assessments) {
-    // This is a placeholder calculation. In a real-world scenario, you'd need to
-    // define what "efficiency" means for your business and calculate it accordingly.
-    return assessments.map(assessment => ({
-        date: assessment.createdAt.split('T')[0],
-        score: Math.random() * 100, // placeholder random score
-    })).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function calculateServiceSatisfaction(assessments) {
-    // This assumes you have a rating system in place for each service
-    const serviceSatisfaction = assessments.reduce((acc, assessment) => {
-        assessment.selectedServices.forEach(service => {
-            if (!acc[service.name]) {
-                acc[service.name] = { total: 0, count: 0 };
-            }
-            acc[service.name].total += service.rating || 0;
-            acc[service.name].count += 1;
-        });
-        return acc;
-    }, {});
-
-    return Object.entries(serviceSatisfaction)
-        .map(([service, data]) => ({
-            service,
-            score: data.count > 0 ? data.total / data.count : 0,
-        }))
-        .sort((a, b) => b.score - a.score);
-}
-
-function calculateClientRetention(assessments) {
-    const clientsByMonth = assessments.reduce((acc, assessment) => {
-        const month = assessment.createdAt.substring(0, 7); // YYYY-MM
-        if (!acc[month]) {
-            acc[month] = { new: new Set(), returning: new Set() };
-        }
-
-        const clientId = assessment.clientId;
-        if (Object.values(acc).some(monthData => monthData.new.has(clientId) || monthData.returning.has(clientId))) {
-            acc[month].returning.add(clientId);
-        } else {
-            acc[month].new.add(clientId);
-        }
-
-        return acc;
-    }, {});
-
-    return Object.entries(clientsByMonth)
-        .map(([month, data]) => ({
-            month,
-            newClients: data.new.size,
-            returningClients: data.returning.size,
-        }))
-        .sort((a, b) => a.month.localeCompare(b.month));
-}

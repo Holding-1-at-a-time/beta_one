@@ -15,9 +15,20 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as ai from "../ai.js";
+import type * as analytics from "../analytics.js";
+import type * as appointments from "../appointments.js";
 import type * as assessments from "../assessments.js";
+import type * as availability from "../availability.js";
+import type * as availableSlots from "../availableSlots.js";
+import type * as bookings from "../bookings.js";
+import type * as clients from "../clients.js";
+import type * as form from "../form.js";
 import type * as generatingQRCode from "../generatingQRCode.js";
+import type * as invoices from "../invoices.js";
+import type * as organizations from "../organizations.js";
 import type * as payments from "../payments.js";
+import type * as services from "../services.js";
+import type * as setting from "../setting.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -29,9 +40,20 @@ import type * as payments from "../payments.js";
  */
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  analytics: typeof analytics;
+  appointments: typeof appointments;
   assessments: typeof assessments;
+  availability: typeof availability;
+  availableSlots: typeof availableSlots;
+  bookings: typeof bookings;
+  clients: typeof clients;
+  form: typeof form;
   generatingQRCode: typeof generatingQRCode;
+  invoices: typeof invoices;
+  organizations: typeof organizations;
   payments: typeof payments;
+  services: typeof services;
+  setting: typeof setting;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
